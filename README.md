@@ -1,0 +1,134 @@
+# Support Inbox OpenEnv
+
+Support Inbox OpenEnv is a realistic agent-evaluation environment for customer support operations. An agent receives a live-style support ticket and must triage it, route it correctly, and draft an appropriate response or escalation note. The domain is grounded in a task humans actually do every day: support inbox handling across billing, technical issues, and security-sensitive incidents.
+
+The environment exposes the standard OpenEnv-style `reset()`, `step()`, and `state()` workflow through typed Pydantic models. It is also served as a containerized web app for Hugging Face Spaces.
+
+## Why this environment
+
+Support triage is a useful benchmark because it combines classification, policy-following, prioritization, and safety-sensitive reasoning. It is practical, easy to validate programmatically, and produces meaningful partial progress signals instead of only binary success.
+
+## Task Set
+
+| Task | Difficulty | Objective |
+| --- | --- | --- |
+| `billing_refund_triage` | Easy | Identify a duplicate billing charge, route to billing, and draft a refund-safe reply. |
+| `outage_status_response` | Medium | Handle an SSO login outage, set high priority, route to technical support, and collect the right diagnostic details. |
+| `account_takeover_escalation` | Hard | Detect a possible account takeover, mark urgent, route to trust-safety, and produce a safe escalation summary. |
+
+## Action Space
+
+Actions are structured through the `support_inbox.models.Action` Pydantic model.
+
+Supported fields:
+
+- `category`: one of `billing`, `technical`, `security`, `account`, `cancellation`
+- `priority`: one of `low`, `normal`, `high`, `urgent`
+- `route_to`: one of `billing`, `support`, `identity`, `trust-safety`, `technical`, `retention`
+- `needs_human_review`: boolean escalation flag
+- `response_draft`: user-facing reply text
+- `summary`: internal triage summary
+- `tags`: list of labels
+- `next_step`: optional internal next action
+- `submit`: marks the ticket ready for final grading
+
+## Observation Space
+
+Observations are structured through `support_inbox.models.Observation` and include:
+
+- ticket subject and customer message
+- customer profile
+- policy excerpt
+- current draft state
+- last feedback from the grader
+- remaining steps in the episode
+- allowed action hints
+
+## Reward Design
+
+Rewards are shaped across the trajectory. Each `step()` compares the current draft to the previous best draft and returns incremental progress in the range `0.0` to `1.0`.
+
+The reward function scores:
+
+- correct classification
+- correct priority and routing
+- escalation correctness
+- response quality and keyword coverage
+- summary quality
+- safety penalties for clearly bad or forbidden phrasing
+
+This means an agent can improve incrementally instead of only receiving a final binary score.
+
+## Setup
+
+### Local install
+
+```bash
+pip install -e .
+```
+
+### Run the server
+
+```bash
+uvicorn support_inbox.server:app --host 0.0.0.0 --port 7860
+```
+
+### Validate
+
+The repository includes a pre-submission validation script:
+
+```bash
+bash scripts/validate-submission.sh https://your-space.hf.space .
+```
+
+The validator checks:
+
+1. the Hugging Face Space responds to `/reset`
+2. the Docker image builds
+3. `openenv validate` passes
+
+### Tests
+
+Run the automated test suite with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The suite covers task metadata, environment progression, HTTP endpoints, the WebSocket path, and the tutorial-style client wrapper.
+
+## Baseline Inference
+
+The required baseline script is [inference.py](inference.py). It uses the OpenAI client with `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN` when available, and falls back to a deterministic heuristic if credentials are missing.
+
+Run it with:
+
+```bash
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+export HF_TOKEN="..."
+python inference.py
+```
+
+## Expected Baseline Scores
+
+The included deterministic fallback baseline produces reproducible scores in the following range on the three tasks:
+
+- `billing_refund_triage`: around `0.90`
+- `outage_status_response`: around `0.88`
+- `account_takeover_escalation`: around `0.91`
+
+The exact values depend on the model used when API credentials are present, but the fallback path is deterministic.
+
+## Hugging Face Spaces
+
+The repository is container-ready. The included [Dockerfile](Dockerfile) starts the FastAPI app on port `7860`, which is compatible with a standard Hugging Face Space deployment.
+
+## Files of interest
+
+- [openenv.yaml](openenv.yaml)
+- [client.py](client.py)
+- [server/environment.py](server/environment.py)
+- [inference.py](inference.py)
+- [support_inbox/env.py](support_inbox/env.py)
+- [support_inbox/tasks.py](support_inbox/tasks.py)

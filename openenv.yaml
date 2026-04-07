@@ -1,0 +1,30 @@
+schema_version: 1
+name: support-inbox-openenv
+title: Support Inbox Operations
+version: 0.1.0
+description: >-
+  A real-world support inbox environment where agents triage, respond to,
+  and escalate customer tickets across billing, technical support, and
+  security-sensitive scenarios.
+entrypoint: server.environment:SupportInboxEnvironment
+server: server.app:app
+observation_model: support_inbox.models:Observation
+action_model: support_inbox.models:Action
+reward_model: support_inbox.models:Reward
+state_model: support_inbox.models:State
+tasks:
+  - id: billing_refund_triage
+    title: Billing refund triage
+    difficulty: easy
+    grader: support_inbox.tasks:grade_billing_refund_triage
+    episode_length: 4
+  - id: outage_status_response
+    title: Outage status response
+    difficulty: medium
+    grader: support_inbox.tasks:grade_outage_status_response
+    episode_length: 4
+  - id: account_takeover_escalation
+    title: Account takeover escalation
+    difficulty: hard
+    grader: support_inbox.tasks:grade_account_takeover_escalation
+    episode_length: 5
