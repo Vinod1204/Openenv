@@ -1,3 +1,17 @@
+---
+title: Support Inbox OpenEnv
+emoji: "📨"
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+tags:
+  - openenv
+  - reinforcement-learning
+  - customer-support
+---
+
 # Support Inbox OpenEnv
 
 Support Inbox OpenEnv is a realistic agent-evaluation environment for customer support operations. An agent receives a live-style support ticket and must triage it, route it correctly, and draft an appropriate response or escalation note. The domain is grounded in a task humans actually do every day: support inbox handling across billing, technical issues, and security-sensitive incidents.
@@ -123,6 +137,27 @@ The exact values depend on the model used when API credentials are present, but 
 ## Hugging Face Spaces
 
 The repository is container-ready. The included [Dockerfile](Dockerfile) starts the FastAPI app on port `7860`, which is compatible with a standard Hugging Face Space deployment.
+
+### Docker local run
+
+Build:
+
+```bash
+docker build -t support-inbox-openenv:latest .
+```
+
+Run:
+
+```bash
+docker run --rm -p 7860:7860 support-inbox-openenv:latest
+```
+
+Smoke test:
+
+```bash
+curl -X GET http://127.0.0.1:7860/health
+curl -X POST http://127.0.0.1:7860/reset -H "Content-Type: application/json" -d '{}'
+```
 
 ## Files of interest
 
