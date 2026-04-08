@@ -129,7 +129,14 @@ def run_task(task_id: str, env_name: str, client: Optional[OpenAI]) -> float:
             if observation["remaining_steps"] <= 0:
                 break
             planned_action = _plan_action(client, observation)
-            result = env.step(Action.model_validate(planned_action))
+            try:
+                action = Action.model_validate(planned_action)
+            except Exception:
+                # If model output shape is wrong, recover with a deterministic valid action.
+                planned_action = _deterministic_fallback(observation)
+                action = Action.model_validate(planned_action)
+
+            result = env.step(action)
             reward = float(result.reward.total)
             rewards.append(reward)
             step_count = step
